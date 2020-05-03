@@ -12,20 +12,18 @@ from os.path import isfile, join
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-# The ID and range of a sample spreadsheet.
+# The ID of the Webcast spreadsheet in Google Drive (seen in the URL)
 WEBCAST_SPREADSHEET_ID = '17_o9tf34OCBVheyxjimPocUNg5JskP4nNwQ0blH3Zvc'
-# SAMPLE_RANGE_NAME = 'Class Data!A2:E'
 
+# The directory where the html files are found, and the folder to move them to
+# (within that directory) once done processing.
 HTML_FILE_DIRECTORY = "./webcast_html/"
 PROCESSED_FOLDER = "processed/"
 
-# Number of columns between starts of new class records.
+# Number of columns between starts of new class records within a sheet.
 SHEET_SPACING = 3
 
 def main():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -45,48 +43,22 @@ def main():
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
+    # Create the sheet object that will be used for all writing and reading.
+    # This object will be passed around to functions that need to write/read.
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
 
     # Process each file in the webcast_html directory:
     listed_files = [f for f in listdir(HTML_FILE_DIRECTORY) if isfile(join(HTML_FILE_DIRECTORY, f))]
     for filename in listed_files:
+        # We ignore .DS_Store, which is a MacOS autogenereated metadata file.
         if filename == ".DS_Store":
             continue
         print("Scraping " + filename)
         process_html_file(HTML_FILE_DIRECTORY, filename, sheet)
 
-    # request_body = {
-    #     'requests': [{
-    #         'addSheet': {
-    #             'properties': {
-    #                 'title': 'test_title2',
-    #                 'tabColor': {
-    #                     'red': random.random(),
-    #                     'green': random.random(),
-    #                     'blue': random.random()
-    #                 }
-    #             }
-    #         }
-    #     }]
-    # }
-    #
-    # values = [["a", "b"], ["c", "d"]]
-    #
-    # body = {
-    #     'values': values
-    # }
-    #
-    # sheet = service.spreadsheets()
-    # response = sheet.batchUpdate(spreadsheetId=WEBCAST_SPREADSHEET_ID, body=request_body).execute()
-    # print("Successfully added new sheet.")
-    #
-    #
-    # # result = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, valueInputOption="USER_ENTERED", range="A1", body=body).execute()
-    # # print('{0} cells updated.'.format(result.get('updatedCells')))
-
-# Return the ith letter of the alphabet, 0-indexed
-def alphabet_letter(i):
+# Return the ith column of a Google sheet , 0-indexed
+def column_letter(i):
     if i < 26:
         return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i]
     else:
@@ -126,13 +98,14 @@ def format_range_val(sheet_title, start_cell):
 # Insert values to a given sheet in the Google Sheets spreadsheet specified by
 # WEBCAST_SPREADSHEET_ID.
 
-def insert_values(sheet_title, values_to_write, start_cell, sheet):
+def insert_values(data, sheet):
         body = {
-            'values': values_to_write
+            'valueInputOption': "USER_ENTERED",
+            'data': data
         }
 
-        result = sheet.values().update(spreadsheetId=WEBCAST_SPREADSHEET_ID, valueInputOption="USER_ENTERED", range=format_range_val(sheet_title, start_cell), body=body).execute()
-        print('{0} cells updated.'.format(result.get('updatedCells')))
+        result = sheet.values().batchUpdate(spreadsheetId=WEBCAST_SPREADSHEET_ID, body=body).execute()
+        print('{0} cells updated.'.format(result.get('totalUpdatedCells')))
 
 def process_html_file(file_path, file_name, sheet):
     # Parse html website
@@ -147,6 +120,15 @@ def process_html_file(file_path, file_name, sheet):
 
     sheet_title = soup.find_all("h1",class_="title")[0].text
     create_new_sheet(sheet_title, sheet, len(class_iteration_sections) * SHEET_SPACING)
+
+
+    # To not hit the 100 writes per second limit, will use batchUpdate:
+    data = []
+    # We add entries of the form
+        # {
+        #     'range': range_name,
+        #     'values': values
+        # }
 
     start_index = 0;
     for section in class_iteration_sections:
@@ -166,9 +148,15 @@ def process_html_file(file_path, file_name, sheet):
             values_to_write.append([link.text, link.get("href")])
 
         # Print starting from cell <letter>1, where letter = SHEET_SPACING *class_iteration
-        start_cell = alphabet_letter(start_index) + "1"
-        insert_values(sheet_title, values_to_write, start_cell, sheet)
+        start_cell = column_letter(start_index) + "1"
+        data.append({
+            'range': format_range_val(sheet_title, start_cell),
+            'values': values_to_write
+        })
+        # insert_values(sheet_title, values_to_write, start_cell, sheet)
         start_index += SHEET_SPACING
+
+    insert_values(data, sheet)
 
     os.rename(file_path + file_name, file_path + PROCESSED_FOLDER + file_name)
 
