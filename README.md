@@ -2,7 +2,7 @@
 
 This is a simple website scraper that processes HTML pages from UC Berkeley's webcast directory, located at [http://webcast.berkeley.edu/](http://webcast.berkeley.edu/), and writes them to a Google Sheet in the user's Google Drive.
 
-I used this script to create this [Master Webcast Spreadsheet in May 2020]([https://docs.google.com/spreadsheets/d/17_o9tf34OCBVheyxjimPocUNg5JskP4nNwQ0blH3Zvc/edit?ouid=105312008256795736262&usp=sheets_home&ths=true](https://docs.google.com/spreadsheets/d/17_o9tf34OCBVheyxjimPocUNg5JskP4nNwQ0blH3Zvc/edit?ouid=105312008256795736262&usp=sheets_home&ths=true)).
+I used this script to create this [Master Webcast Spreadsheet](https://docs.google.com/spreadsheets/d/17_o9tf34OCBVheyxjimPocUNg5JskP4nNwQ0blH3Zvc/edit?ouid=105312008256795736262&usp=sheets_home&ths=true) in May 2020.
 
 
 ## Usage
